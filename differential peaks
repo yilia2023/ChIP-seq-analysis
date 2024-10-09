@@ -1,0 +1,67 @@
+#QC and Trime
+for i in {sample1, sample2, .......};
+do
+fastp -l 25 -w 10 -q 20 --detect_adapter_for_pe -i  ${i}_R1.fastq.gz -I ${i}_R2.fastq.gz -o /01_fastp/${i}_r1.trim.fastq.gz -O /01_fastp/${i}_r2.trim.fastq.gz -h /01_fastp/${i}.fastp.html -j /01_fastp/${i}.fastp.json;
+done
+
+#map and filter
+for i in {sample1, sample2, .......};
+do
+hisat2 -X 500 -p 10 --no-spliced-alignment --no-temp-splicesite -x /mm10/genome -1 /01_fastp/${i}_r1.trim.fastq.gz -2 /01_fastp/${i}_r2.trim.fastq.gz --summary-file /02_map/${i}_algn_sum.txt | samtools view -bS | samtools view -h -f 2 -F3844 -q 30 | grep -v chrM | samtools sort -o /02_map/${i}.sort.bam;
+done
+
+#deduplicate
+for i in {sample1, sample2, .......};
+do
+echo $i
+sambamba markdup -t 10 -r -p /02_map/${i}.sort.bam /03_sambamba/${i}_sambamba.bam
+done
+
+#sort
+for i in *.bam
+do
+echo $i
+samtools sort -O bam -@ 10 ./$i -o ./${i}sort.bam
+done
+
+#call peak
+macs2 callpeak -t H3K27me3_sambamba.bamsort.bam -c Input_sambamba.bamsort.bam" -q 0.05 -f BAMPE -B -g mm --keep-dup all -n H3K27me3 --outdir 04_callpeak
+
+#bdg to bw
+for i in *.bdg
+do
+echo $i;
+sort -k1,1 -k2,2n $i > ./${i}.sort.bdg
+bedGraphToBigWig ${i}.sort.bdg mm10.chrom.sizes ${i}.sort.bw
+done
+
+#differential peaks analysis
+#merge peaks with overlap
+for i in *.narrowPeak
+do
+bedtools merge -i $i > $i.merge.narrowPeak
+done
+
+#count reads
+bedtools coverage -sorted -a sample.merge.narrowPeak -b sample_sambamba.bamsort.bam > sample_reads.txt
+#differential analysis by Deseq2 in R with criteria:
+|log2FoldChange|>= 1 & padj < 0.05
+
+#Heatmap in Figures 2C and S2C
+computeMatrix reference-point --referencePoint center -p 10 -b 8000 -a 8000 -R H3K27me3_peaks_up.bed -S LIF-H3K27me3_treat_pileup.bdg.sort.bw Con-H3K27me3_treat_pileup.bdg.sort.bw --skipZeros -o H3k27me3_up.gz
+computeMatrix reference-point --referencePoint center -p 10 -b 8000 -a 8000 -R H3K27me3_peaks_down.bed -S LIF-H3K27me3_treat_pileup.bdg.sort.bw Con-H3K27me3_treat_pileup.bdg.sort.bw --skipZeros -o H3k27me3_down.gz
+
+plotProfile -m H3k27me3_up.gz -out H3K27me3_up.pdf --perGroup --colors red blue --plotTitle "H3K27me3_up" --plotHeight 8 --plotWidth 8 --samplesLabel Con noLIF
+plotProfile -m H3k27me3_down.gz -out H3K27me3_down.pdf --perGroup --colors red blue --plotTitle "H3K27me3_down" --plotHeight 8 --plotWidth 8 --samplesLabel Con noLIF
+
+plotHeatmap -m H3k27me3_up.gz --colorList 'white,blue' --boxAroundHeatmaps no -out H3K27me3_heatmap_up.pdf --heatmapHeight 9 --heatmapWidth 3 --whatToShow 'heatmap only'
+plotHeatmap -m H3k27me3_down.gz --colorList 'white,blue' --boxAroundHeatmaps no -out H3K27me3_heatmap_down.pdf --heatmapHeight 9 --heatmapWidth 3 --whatToShow 'heatmap only'
+
+#Figure3G 
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn3
+my_dpi=100
+plt.figure(figsize=(800/my_dpi, 600/my_dpi), dpi=my_dpi)
+venn3(subsets = (6375, 7134, 2207, 19328,2447,979,2357), set_labels = ('Beta-catenin', 'DPF2', 'STAT3'))
+plt.savefig('C:/Users/86131/Desktop/venn_diagram.pdf')
+plt.show()
