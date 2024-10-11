@@ -58,16 +58,16 @@ LIF1 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep1_sambamba.bamsort.bam
                   sep="\t", col.names = c("chr","start","end","KO1","a","b","c"))
 LIF2 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep2_sambamba.bamsort.bam_reads.txt", 
                   sep="\t", col.names = c("chr","start","end","KO2","a","b","c"))
-con1 <- KO1[, 1:4]
-con2 <- KO2[, 1:4]
-LIF1 <- WT1[, 1:4]
-LIF2 <- WT2[, 1:4]
+con1 <- con1[, 1:4]
+con2 <- con2[, 1:4]
+LIF1 <- LIF1[, 1:4]
+LIF2 <- LIF2[, 1:4]
 ##Prepare the data in the required format for DESeq2 analysis
 con_peak <- merge(con1,con2,by=c("chr","start","end"),all = TRUE)
 LIF_peak <- merge(LIF1,LIF2,by=c("chr","start","end"),all = TRUE)
 count_peak <- merge(con_peak,LIF_peak,by=c("chr","start","end"),all = TRUE)
 row.names(count_peak) <- paste(count_peak$chr, ":", count_peak$start, "-", count_peak$end)
-countData = count_peak[,c("WT1", "WT2", "KO1", "KO2")]
+countData = count_peak[,c("con1", "con2", "LIF1", "LIF2")]
 row.names(countData) <- row.names(count_peak)
 ##creat colData
 condition <- factor(c(rep("con",2),rep("LIF",2)), levels = c("con","LIF"))
