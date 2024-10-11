@@ -44,8 +44,51 @@ done
 
 #count reads
 bedtools coverage -sorted -a sample.merge.narrowPeak -b sample_sambamba.bamsort.bam > sample_reads.txt
-#differential analysis by Deseq2 in R with criteria:
-|log2FoldChange|>= 1 & padj < 0.05
+
+#differential analysis by Deseq2 in R :
+library(tidyverse)
+library(DESeq2)
+library(magrittr)
+##import the data
+con1 <- read.table("D:/MZR/H3K27me3/reads/Con-H3K27me3-rep1_sambamba.bamsort.bam_reads.txt", 
+                  sep="\t", col.names = c("chr","start","end","WT1","a","b","c"))
+con2 <- read.table("D:/MZR/H3K27me3/reads/Con-H3K27me3-rep2_sambamba.bamsort.bam_reads.txt", 
+                  sep="\t", col.names = c("chr","start","end","WT2","a","b","c"))
+LIF1 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep1_sambamba.bamsort.bam_reads.txt", 
+                  sep="\t", col.names = c("chr","start","end","KO1","a","b","c"))
+LIF2 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep2_sambamba.bamsort.bam_reads.txt", 
+                  sep="\t", col.names = c("chr","start","end","KO2","a","b","c"))
+con1 <- KO1[, 1:4]
+con2 <- KO2[, 1:4]
+LIF1 <- WT1[, 1:4]
+LIF2 <- WT2[, 1:4]
+##Prepare the data in the required format for DESeq2 analysis
+con_peak <- merge(con1,con2,by=c("chr","start","end"),all = TRUE)
+LIF_peak <- merge(LIF1,LIF2,by=c("chr","start","end"),all = TRUE)
+count_peak <- merge(con_peak,LIF_peak,by=c("chr","start","end"),all = TRUE)
+row.names(count_peak) <- paste(count_peak$chr, ":", count_peak$start, "-", count_peak$end)
+countData = count_peak[,c("WT1", "WT2", "KO1", "KO2")]
+row.names(countData) <- row.names(count_peak)
+##creat colData
+condition <- factor(c(rep("con",2),rep("LIF",2)), levels = c("con","LIF"))
+colData <- data.frame(row.names=colnames(countData), condition)
+##creat DESeqDataSet
+dds <- DESeqDataSetFromMatrix(countData = countData, colData = colData,
+                                 design = ~ condition)
+##differential peaks analysis by DEseq2
+dds1 <- DESeq(dds)
+res <- results(dds1)
+##Sort by log2 Fold Change and convert to a data frame
+resOrdered1 <- res[order(res$log2FoldChange),] %>% as.data.frame()
+##identify differential peaks 
+up<- resOrdered1[which(resOrdered1$log2FoldChange > 1 & resOrdered1$padj < 0.05),]    
+down<- resOrdered1[which(resOrdered1$log2FoldChange < -1 & resOrdered1$padj < 0.05),]  
+##Extract the chromatin position information
+up_peak <- merge(count_peak[, 1:3], up, by = "row.names", all = FALSE)
+down_peak <- merge(count_peak[, 1:3], down, by = "row.names", all = FALSE)
+##export the results
+write.table(up_peak[,2:4], file = "D:/MZR/H3K27me3/H3K27me3_peaks_down.bed", sep = "\t", quote = FALSE, row.names = FALSE, col.names = F)
+write.table(down_peak[,2:4], file = "D:/MZR/H3K27me3/H3K27me3_peaks_up.bed", sep = "\t", quote = FALSE, row.names = FALSE, col.names = F)
 
 #Heatmap in Figures 2C and S2C
 computeMatrix reference-point --referencePoint center -p 10 -b 8000 -a 8000 -R H3K27me3_peaks_up.bed -S LIF-H3K27me3_treat_pileup.bdg.sort.bw Con-H3K27me3_treat_pileup.bdg.sort.bw --skipZeros -o H3k27me3_up.gz
