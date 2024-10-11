@@ -51,13 +51,13 @@ library(DESeq2)
 library(magrittr)
 ##import the data
 con1 <- read.table("D:/MZR/H3K27me3/reads/Con-H3K27me3-rep1_sambamba.bamsort.bam_reads.txt", 
-                  sep="\t", col.names = c("chr","start","end","WT1","a","b","c"))
+                  sep="\t", col.names = c("chr","start","end","con1","a","b","c"))
 con2 <- read.table("D:/MZR/H3K27me3/reads/Con-H3K27me3-rep2_sambamba.bamsort.bam_reads.txt", 
-                  sep="\t", col.names = c("chr","start","end","WT2","a","b","c"))
+                  sep="\t", col.names = c("chr","start","end","con2","a","b","c"))
 LIF1 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep1_sambamba.bamsort.bam_reads.txt", 
-                  sep="\t", col.names = c("chr","start","end","KO1","a","b","c"))
+                  sep="\t", col.names = c("chr","start","end","LIF1","a","b","c"))
 LIF2 <- read.table("D:/MZR/H3K27me3/reads/LIF-H3K27me3-rep2_sambamba.bamsort.bam_reads.txt", 
-                  sep="\t", col.names = c("chr","start","end","KO2","a","b","c"))
+                  sep="\t", col.names = c("chr","start","end","LIF2","a","b","c"))
 con1 <- con1[, 1:4]
 con2 <- con2[, 1:4]
 LIF1 <- LIF1[, 1:4]
